@@ -2,7 +2,7 @@
 
 A music recommendation project that suggests albums! It takes a user's selected albums and provides similar albums based on shared genres, descriptions, and tags.
 
-# Stack
+## Stack
 Data processing: pyspark
 API: Flask
 Conainerization: Docker and Docker Compose
@@ -12,8 +12,8 @@ Recommendation engine: weighted tag scorer
 ## Architecture
 csv/Last.fm -> pyspark -> processed json -> API scoring
 
-ETL Service: runs pyspark, builds processed output
-API Service: loads processed data, serves recommendations
+ETL (extract, transform, load) Pipeline: runs pyspark, builds processed output
+API Backend: loads processed data, serves recommendations
 
 ## Starting w/ Docker
 ```

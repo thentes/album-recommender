@@ -3,12 +3,16 @@ PySpark ETL Pipeline
 
 Processes the RYM datasets
 For each album, creates weighted feature embeddings (from its genres and descriptors)
+Saves a JSON with album data and the complete feature vocab
 """
 
+import json
+
 from pyspark.sql import SparkSsesion
-from pyspark.sql.functions import udf, col
+from pyspark.sql.functions import udf, col, explode
 from pyspark.sql.types import ArrayType, StringType, MapType, FloatType
 
+# Cleans up a comma-separated list
 def parse_csv(field_value):
 
     # Checks if there isn't a field value
@@ -68,7 +72,7 @@ def main():
 
     print(f"Loaded {df.count()} albums!")
 
-    # Registers UDF to parse the CSV list
+    # Registers user defined funct to parse the CSV list
     parse_csv_udf = udf(parse_csv, ArrayType(StringType()))
 
     # Creates feature UDF to assign weights
@@ -77,7 +81,7 @@ def main():
         
     create_features_udf = udf(create_features, MapType(StringType(), FloatType()))
 
-    # Parses the genres and descriptors fields
+    # Parses the genres and descriptors fields with parse_csv_udf, cleaning up each col of genres to make a parsed df
     df_parsed = df.withColumn("primary_genres_list", parse_csv_udf(col("primary_genres")))\
                   .withColumn("secondary_genres_list", parse_csv_udf(col("secondary_genres")))\
                     .withColumn("descriptors_list", parse_csv_udf(col("descriptors")))\
@@ -85,34 +89,70 @@ def main():
 
     # Builds the feature vocab by collecting all unique features
 
-    all_primaries = 
+    all_primaries = df_parsed.select(explode(col("primary_genres_list")).alias("genre")).distinct() # explode "explodes" the array of genres into distinct rows (one per genre)
 
-    all_secondaries = 
+    all_secondaries = df_parsed.select(explode(col("secondary_genres_list")).alias("genre")).disinct()
 
-    all_descriptors = 
+    all_descriptors = df_parsed.select(explode(col("descriptors_list")).alias("descriptor")).distinct()
 
-    primary_vocab = 
+    # Prefixes are once again included to distinguish types
+    primary_vocab = [f"primary_{row.genre}" for row in all_primaries.collect() if row.genre]
 
-    secondary_vocab = 
+    secondary_vocab = [f"secondary_{row.genre}" for row in all_secondaries.collect() if row.genre]
 
-    descriptor_vocab = 
+    descriptor_vocab = [f"descriptor_{row.descriptor}" for row in all_descriptors.collect() if row.descriptor]
 
     # Makes the complete feature vocab
+    feature_vocab = primary_vocab + secondary_vocab + descriptor_vocab
 
-    feature_vocab = 
+    print(f"Feature vocab size: {len(feature_vocab)} with {len(primary_vocab)} primary genres, {len(secondary_vocab)} secondary genres, and {len(descriptor_vocab)} descriptors")
 
     # Gets final cols for final df (everything needed for recs)
+    df_final = df_parsed.select(col("position"), col("artist_name"), col("release_name"), col("release_date"), col("release_type"), col("primary_genres_list"), col("secondary_genres_list"), col("descriptors_list"), col("features"), col("avg_rating"), col("rating_count"))
 
-    df_final = 
+    # Converts final df to pandas
+    df_pandas = df_final.toPandas()
 
-    # Converts to pandas
+    # Iterates over each pandas df row to convert to a list of dicts for JSON output
+    albums_data = []
+    for _, row in df_pandas.iterrows():
 
-    df_pandas = 
+        album_dict = {
+            "position": int(row["position"]),
+            "artist_name": row["artist_name"],
+            "release_name": row["release_name"],
+            "release_date": row["release_date"],
+            "release_type": row["release_type"],
+            "primary_genres": row["primary_genres_list"],
+            "secondary_genres": row["secondary_genres_list"],
+            "descriptors": row["descriptors_list"],
+            "features": row["features"],
+            "avg_rating": float(row["avg_rating"]),
+            "rating_count": int(row["rating_count"])
+        }
 
-    # Converts to a list of dicts for JSON output
+        albums_data.append(album_dict)
+
+    # Rebuilds complete feature vocab list from final, merged dataset
+    final_feature_vocab_set = set()
+    for album in albums_data:                 
+        for feature_name in album["features"].keys():
+            final_feature_vocab_set.add(feature_name)
+
+    # Sorts the final feature vocab
+    final_feature_vocab = sorted(list(final_feature_vocab_set))
+
+    # Saves the processed data as JSON, including feature vocab
+    output_data = {"feature_vocab": final_feature_vocab, "albums": albums_data}
+
+    with open("processed_data/albums_with_embeddings.json", "w") as f:
+        json.dump(output_data, f)
+
+    print(f"Processed {len(albums_data)} albums and {len(final_feature_vocab)} unique features")
 
     # Stops the Spark session
     spark.stop()
 
 if __name__ == "__main__":
     main()
+    

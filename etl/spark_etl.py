@@ -8,7 +8,7 @@ Saves a JSON with album data and the complete feature vocab
 
 import json
 
-from pyspark.sql import SparkSsesion
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf, col, explode
 from pyspark.sql.types import ArrayType, StringType, MapType, FloatType
 

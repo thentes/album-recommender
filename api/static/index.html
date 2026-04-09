@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Album Recommender</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .search-section {
+            margin-bottom: 30px;
+        }
+        
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        #albumSearch {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        
+        #albumSearch:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .autocomplete-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .autocomplete-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .selected-albums {
+            margin-bottom: 20px;
+        }
+        
+        .selected-albums h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .selected-album-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 14px;
+        }
+        
+        .remove-btn {
+            background: none;
+            border: none;
+            color: white;
+            margin-left: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .remove-btn:hover {
+            color: #ffcccc;
+        }
+        
+        .submit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .submit-btn:hover {
+            background: #5568d3;
+        }
+        
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .recommendations {
+            margin-top: 40px;
+        }
+        
+        .recommendations h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .recommendation-item {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        
+        .recommendation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .album-info {
+            flex: 1;
+        }
+        
+        .album-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .album-artist {
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .score-badge {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .rating-info {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            color: #777;
+            margin-top: 5px;
+        }
+        
+        .rating-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .rating-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .genres {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .genre-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .genre-value {
+            color: #777;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Album Recommender</h1>
+        <p class="subtitle">Trying to help keep albums alive. Thanks for trying this out!</p>
+        
+        <div class="search-section">
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="albumSearch" 
+                    placeholder="Type to search for albums you like!"
+                    autocomplete="off"
+                >
+                <div id="autocompleteResults" class="autocomplete-results"></div>
+            </div>
+            
+            <div class="selected-albums">
+                <h3>Selected Albums:</h3>
+                <div id="selectedAlbumTags"></div>
+            </div>
+            
+            <button id="submitBtn" class="submit-btn" disabled>Get Recommendations</button>
+        </div>
+        
+        <div id="recommendations" class="recommendations" style="display: none;">
+            <h2>Recommended Albums</h2>
+            <div id="recommendationsList"></div>
+        </div>
+    </div>
+    
+    <script>
+        // state
+        let selectedAlbums = [];
+        
+        // DOM elements
+        const searchInput = document.getElementById('albumSearch');
+        const autocompleteDiv = document.getElementById('autocompleteResults');
+        const selectedTagsDiv = document.getElementById('selectedAlbumTags');
+        const submitBtn = document.getElementById('submitBtn');
+        const recommendationsDiv = document.getElementById('recommendations');
+        const recommendationsList = document.getElementById('recommendationsList');
+        
+        // autocomplete
+        let debounceTimer;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const query = e.target.value.trim();
+            
+            if (query.length < 2) {
+                autocompleteDiv.style.display = 'none';
+                return;
+            }
+            
+            debounceTimer = setTimeout(() => {
+                fetch(`/autocomplete?query=${encodeURIComponent(query)}`)
+                    .then(res => res.json())
+                    .then(results => {
+                        showAutocomplete(results);
+                    })
+                    .catch(err => console.error('Autocomplete error:', err));
+            }, 300);
+        });
+        
+        function showAutocomplete(results) {
+            if (results.length === 0) {
+                autocompleteDiv.style.display = 'none';
+                return;
+            }
+            
+            let htmlElements = [];
+            for (let i = 0; i < results.length; i++) {
+                const album = results[i];
+                htmlElements.push(
+                    `<div class="autocomplete-item" data-position="${album.position}">
+                        ${album.display}
+                    </div>`
+                );
+            }
+            autocompleteDiv.innerHTML = htmlElements.join('');
+            
+            autocompleteDiv.style.display = 'block';
+            
+            // adds click handlers
+            document.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const position = parseInt(item.dataset.position);
+                    const albumText = item.textContent.trim();
+                    addSelectedAlbum(position, albumText);
+                    searchInput.value = '';
+                    autocompleteDiv.style.display = 'none';
+                });
+            });
+        }
+        
+        // closes autocomplete when it's clicked outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !autocompleteDiv.contains(e.target)) {
+                autocompleteDiv.style.display = 'none';
+            }
+        });
+        
+        function addSelectedAlbum(position, displayText) {
+            // checks if album is already selected
+            let alreadySelected = false;
+            for (let i = 0; i < selectedAlbums.length; i++) {
+                if (selectedAlbums[i].position === position) {
+                    alreadySelected = true;
+                    break;
+                }
+            }
+            
+            if (alreadySelected) {
+                return;
+            }
+            
+            selectedAlbums.push({ position, displayText });
+            renderSelectedAlbums();
+            updateSubmitButton();
+        }
+        
+        function removeSelectedAlbum(position) {
+            let newSelectedAlbums = [];
+            for (let i = 0; i < selectedAlbums.length; i++) {
+                if (selectedAlbums[i].position !== position) {
+                    newSelectedAlbums.push(selectedAlbums[i]);
+                }
+            }
+            selectedAlbums = newSelectedAlbums;
+            
+            renderSelectedAlbums();
+            updateSubmitButton();
+        }
+        
+        function renderSelectedAlbums() {
+            if (selectedAlbums.length === 0) {
+                selectedTagsDiv.innerHTML = '<p style="color: #999;">No albums selected yet</p>';
+                return;
+            }
+            
+            let htmlElements = [];
+            for (let i = 0; i < selectedAlbums.length; i++) {
+                const album = selectedAlbums[i];
+                htmlElements.push(
+                    `<span class="selected-album-tag">
+                        ${album.displayText}
+                        <button class="remove-btn" onclick="removeSelectedAlbum(${album.position})">×</button>
+                    </span>`
+                );
+            }
+            selectedTagsDiv.innerHTML = htmlElements.join('');
+        }
+        
+        function updateSubmitButton() {
+            submitBtn.disabled = selectedAlbums.length === 0;
+        }
+        
+        // submits recommendations
+        submitBtn.addEventListener('click', () => {
+            if (selectedAlbums.length === 0) return;
+            
+            recommendationsDiv.style.display = 'block';
+            recommendationsList.innerHTML = '<div class="loading">Loading recommendations...</div>';
+            
+            let positions = [];
+            for (let i = 0; i < selectedAlbums.length; i++) {
+                positions.push(selectedAlbums[i].position);
+            }
+            
+            fetch('/recommend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    selected_albums: positions,
+                    top_n: 50
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                showRecommendations(data.recommendations);
+            })
+            .catch(err => {
+                console.error('Recommendation error:', err);
+                recommendationsList.innerHTML = '<div class="empty-state">Error loading recommendations</div>';
+            });
+        });
+
+        function toArray(value) {
+            return Array.isArray(value) ? value : [];
+        }
+
+        function formatScore(scoreValue) {
+            return Number.isInteger(scoreValue) ? scoreValue.toString() : scoreValue.toFixed(1);
+        }
+
+        function renderRatingInfo(rec) {
+            if (typeof rec.avg_rating !== 'number' || typeof rec.rating_count !== 'number') {
+                return '';
+            }
+
+            return `<div class="rating-info">
+                        <div class="rating-item">
+                            <span class="rating-label">Rating:</span>
+                            <span>${rec.avg_rating.toFixed(2)}/5.0</span>
+                        </div>
+                        <div class="rating-item">
+                            <span class="rating-label">Ratings:</span>
+                            <span>${rec.rating_count.toLocaleString()}</span>
+                        </div>
+                    </div>`;
+        }
+
+        function renderGenreRows(rec) {
+            const primaryGenres = toArray(rec.primary_genres);
+            const secondaryGenres = toArray(rec.secondary_genres);
+            const descriptors = toArray(rec.descriptors);
+
+            const rows = [];
+
+            if (primaryGenres.length > 0) {
+                rows.push(`<div><span class="genre-label">Primary:</span> <span class="genre-value">${primaryGenres.join(', ')}</span></div>`);
+            }
+
+            if (secondaryGenres.length > 0) {
+                rows.push(`<div><span class="genre-label">Secondary:</span> <span class="genre-value">${secondaryGenres.join(', ')}</span></div>`);
+            }
+
+            if (descriptors.length > 0) {
+                const descriptorLabel = 'Descriptors';
+                const descriptorText = descriptors.slice(0, 8).join(', ');
+                let hasMore = '';
+                if (descriptors.length > 8) {
+                    hasMore = '...';
+                }
+                rows.push(`<div><span class="genre-label">${descriptorLabel}:</span> <span class="genre-value">${descriptorText}${hasMore}</span></div>`);
+            }
+
+            return rows.join('');
+        }
+
+        function renderRecommendationItem(rec, index) {
+            const scoreText = formatScore(rec.score);
+
+            return `<div class="recommendation-item">
+                <div class="recommendation-header">
+                    <div class="album-info">
+                        <div class="album-title">#${index + 1}: ${rec.release_name}</div>
+                        <div class="album-artist">${rec.artist_name}</div>
+                        ${renderRatingInfo(rec)}
+                    </div>
+                    <div class="score-badge">${scoreText} pts</div>
+                </div>
+                <div class="genres">
+                    ${renderGenreRows(rec)}
+                </div>
+            </div>`;
+        }
+        
+        function showRecommendations(recommendations) {
+            if (recommendations.length === 0) {
+                recommendationsList.innerHTML = '<div class="empty-state">No recommendations found</div>';
+                return;
+            }
+            
+            let htmlElements = [];
+            for (let i = 0; i < recommendations.length; i++) {
+                const rec = recommendations[i];
+                const html = renderRecommendationItem(rec, i);
+                htmlElements.push(html);
+            }
+            recommendationsList.innerHTML = htmlElements.join('');
+            
+            // scrolls to recommendations
+            recommendationsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        // initializes
+        renderSelectedAlbums();
+    </script>
+</body>
+</html>

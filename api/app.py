@@ -22,11 +22,11 @@ DATA_PATH = os.environ.get('DATA_PATH', os.path.join(PROJECT_ROOT, 'processed_da
 recommender = None
 
 # creates a json error response
-def json_error(message: str, status_code: int):
+def json_error(message, status_code):
     return jsonify({'error': message}), status_code
 
 # parses an integer with a safe default for invalid input
-def parse_int(value, default_value: int) -> int:
+def parse_int(value, default_value):
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -44,10 +44,10 @@ def init_recommender():
             raise
 
 # starts flask server and falls back to nearby ports if current one is busy
-def run_server_with_port_fallback(host: str, initial_port: int, debug: bool):
+def run_server_with_port_fallback(host, initial_port, debug):
 
     # checks if a host/port can be bound
-    def is_port_available(port_to_check: int) -> bool:
+    def is_port_available(port_to_check):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as test_socket:
             test_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             try:
@@ -103,7 +103,10 @@ def autocomplete():
 
         query = request.args.get('query', '')
         limit = parse_int(request.args.get('limit', 10), 10)
-        limit = max(1, min(limit, 50))
+        if limit > 50:
+            limit = 50
+        if limit < 1:
+            limit = 1
         
         if not query or len(query) < 2:
             return jsonify([]), 200
@@ -138,7 +141,10 @@ def recommend():
         
         selected_albums = data['selected_albums']
         top_n = parse_int(data.get('top_n', 50), 50)
-        top_n = max(1, min(top_n, 5000))
+        if top_n > 5000:
+            top_n = 5000
+        if top_n < 1:
+            top_n = 1
         
         if not selected_albums:
             return json_error('At least one album must be selected', 400)
@@ -183,6 +189,10 @@ if __name__ == '__main__':
     # gets configuration from environment variables
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
     port = parse_int(os.environ.get('FLASK_PORT', 5000), 5000)
-    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    debug_str = os.environ.get('FLASK_DEBUG', 'False')
+    if debug_str.lower() == 'true':
+        debug = True
+    else:
+        debug = False
 
     run_server_with_port_fallback(host, port, debug)

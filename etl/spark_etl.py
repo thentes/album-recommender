@@ -65,7 +65,7 @@ def main():
     """
 
     # Initializes the Spark session
-    spark = SparkSession.builder.appname("AlbumRecommenderETL").config("spark.driver.memory", "4g").getOrCreate()
+    spark = SparkSession.builder.appName("AlbumRecommenderETL").config("spark.driver.memory", "4g").getOrCreate()
     
     # Reads the CSV file into a Spark df
     df = spark.read.csv("rym_top5000.csv", header=True, inferSchema=True, escape='"')
@@ -91,16 +91,25 @@ def main():
 
     all_primaries = df_parsed.select(explode(col("primary_genres_list")).alias("genre")).distinct() # explode "explodes" the array of genres into distinct rows (one per genre)
 
-    all_secondaries = df_parsed.select(explode(col("secondary_genres_list")).alias("genre")).disinct()
+    all_secondaries = df_parsed.select(explode(col("secondary_genres_list")).alias("genre")).distinct()
 
     all_descriptors = df_parsed.select(explode(col("descriptors_list")).alias("descriptor")).distinct()
 
     # Prefixes are once again included to distinguish types
-    primary_vocab = [f"primary_{row.genre}" for row in all_primaries.collect() if row.genre]
+    primary_vocab = []
+    for row in all_primaries.collect():
+        if row.genre:
+            primary_vocab.append(f"primary_{row.genre}")
 
-    secondary_vocab = [f"secondary_{row.genre}" for row in all_secondaries.collect() if row.genre]
+    secondary_vocab = []
+    for row in all_secondaries.collect():
+        if row.genre:
+            secondary_vocab.append(f"secondary_{row.genre}")
 
-    descriptor_vocab = [f"descriptor_{row.descriptor}" for row in all_descriptors.collect() if row.descriptor]
+    descriptor_vocab = []
+    for row in all_descriptors.collect():
+        if row.descriptor:
+            descriptor_vocab.append(f"descriptor_{row.descriptor}")
 
     # Makes the complete feature vocab
     feature_vocab = primary_vocab + secondary_vocab + descriptor_vocab
